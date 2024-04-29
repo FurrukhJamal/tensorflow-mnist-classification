@@ -15,6 +15,7 @@ function App() {
   const [inputsTensor, setInputsTensor] = useState(null);
   const [outputsTensor, setOutputsTensor] = useState(null);
 
+  const [isDrawing, setIsDrawing] = useState(false);
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -73,7 +74,7 @@ function App() {
   }, [model]);
 
   useEffect(() => {
-    setInterval(evaluate, 4000);
+    // setInterval(evaluate, 4000);
   }, [isTrainingDone]);
 
   async function evaluate() {
@@ -118,6 +119,35 @@ function App() {
     CTX.putImageData(imageData, 0, 0);
   }
 
+  function drawCustomCircle(event) {
+    setIsDrawing(true);
+    console.log("mouse clicked");
+    let rect = canvasRef.current.getBoundingClientRect();
+    console.log("getBoundingRect", rect);
+
+    let elementRelativeX = event.clientX - rect.left;
+    let elementRelativeY = event.clientY - rect.top;
+
+    let canvasRelativeX =
+      (elementRelativeX * canvasRef.current.clientWidth) / rect.width;
+    let canvasRelativeY =
+      (elementRelativeY * canvasRef.current.clientHeight) / rect.height;
+    // console.log("width of canvas : ", canvasRef.current.clientWidth);
+
+    console.log(`x : ${canvasRelativeX}, y : ${canvasRelativeY}`);
+
+    let CTX = canvasRef.current.getContext("2d");
+    CTX.beginPath();
+    CTX.arc(canvasRelativeX, canvasRelativeY, 2, 0, Math.PI * 2);
+    CTX.stroke();
+  }
+
+  function hanleClickedMouseMoveOnCanvas(event) {
+    if (isDrawing) {
+      drawCustomCircle(event);
+    }
+  }
+
   return (
     <div>
       <h1>TensorFlow.js MNIST Classifier</h1>
@@ -131,7 +161,19 @@ function App() {
               Input Image is a 28x28 pixel greyscale image for MNIST dataset- a
               real hand drawn digit
             </p>
-            <canvas ref={canvasRef} width="28" height="28"></canvas>
+            <canvas
+              ref={canvasRef}
+              width="168"
+              height="168"
+              onMouseMove={hanleClickedMouseMoveOnCanvas}
+              onMouseDown={drawCustomCircle}
+              onMouseUp={() => setIsDrawing(false)}
+              style={{
+                borderWidth: 2,
+                borderStyle: "solid",
+                borderColor: "yellow",
+              }}
+            ></canvas>
           </section>
 
           <section className="box">

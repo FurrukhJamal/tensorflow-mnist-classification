@@ -29,10 +29,10 @@ h1 {
 
 canvas {
   display : block;
-  width : 28px;
-  height : 28px;
+  /* width : 28px;
+  height : 28px; */
   margin : 10px auto 5px auto;
-  zoom : 6;
+  /* zoom : 6; */
 }
 
 p#prediction {
