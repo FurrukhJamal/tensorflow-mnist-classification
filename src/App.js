@@ -17,6 +17,10 @@ function App() {
 
   const [isDrawing, setIsDrawing] = useState(false);
   const canvasRef = useRef(null);
+  const [forDrawingPrevX, setForDrawingPrevX] = useState(null);
+  const [forDrawingPrevY, setForDrawingPrevY] = useState(null);
+
+  const canvasDebug = useRef(null);
 
   useEffect(() => {
     document.title = "TensorFlow MNIST Dataset Classification";
@@ -37,6 +41,7 @@ function App() {
 
     let m = tf.sequential();
     setModel(m);
+    // console.log("one input data is", inputs[0]);
   }, []);
 
   useEffect(() => {
@@ -65,7 +70,7 @@ function App() {
           },
         });
 
-        inputsTensor.dispose();
+        // inputsTensor.dispose();
         outputsTensor.dispose();
 
         setIsTrainingDone(true);
@@ -76,6 +81,15 @@ function App() {
   useEffect(() => {
     // setInterval(evaluate, 4000);
   }, [isTrainingDone]);
+
+  useEffect(() => {
+    if (model && isTrainingDone) {
+      //initializing the canvas background color to be black
+      let ctx = canvasRef.current.getContext("2d");
+      ctx.fillstyle = "black";
+      ctx.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    }
+  }, [isTrainingDone, model]);
 
   async function evaluate() {
     const OFFSET = Math.floor(Math.random() * inputs.length);
@@ -122,8 +136,59 @@ function App() {
   function drawCustomCircle(event) {
     setIsDrawing(true);
     console.log("mouse clicked");
+
+    // console.log("width of canvas : ", canvasRef.current.clientWidth);
+    const [canvasRelativeX, canvasRelativeY] = calculateXYCanvas(event);
+
+    console.log(`x : ${canvasRelativeX}, y : ${canvasRelativeY}`);
+
+    let CTX = canvasRef.current.getContext("2d");
+
+    if (forDrawingPrevX == null && forDrawingPrevY == null) {
+      CTX.beginPath();
+      CTX.arc(canvasRelativeX, canvasRelativeY, 2, 0, Math.PI * 2);
+      CTX.fillStyle = "white";
+      CTX.fill();
+      CTX.strokeStyle = "white";
+      CTX.stroke();
+      // setForDrawingPrevX(canvasRelativeX);
+      // setForDrawingPrevY(canvasRelativeY);
+    } else {
+      CTX.beginPath();
+      CTX.moveTo(forDrawingPrevX, forDrawingPrevY);
+      CTX.lineTo(canvasRelativeX, canvasRelativeY);
+      CTX.lineWidth = 4;
+      CTX.strokeStyle = "white";
+      CTX.stroke();
+    }
+  }
+
+  function hanleClickedMouseMoveOnCanvas(event) {
+    if (isDrawing) {
+      let [x, y] = calculateXYCanvas(event);
+      setForDrawingPrevX(x);
+      setForDrawingPrevY(y);
+      drawCustomCircle(event);
+    }
+  }
+
+  function handleMouseUpOnCanvas() {
+    setIsDrawing(false);
+    setForDrawingPrevX(null);
+    setForDrawingPrevY(null);
+  }
+
+  function handleClearCanvas() {
+    let ctx = canvasRef.current.getContext("2d");
+    ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    // refilling the black background
+    ctx.fillStyle = "black";
+    ctx.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+  }
+
+  function calculateXYCanvas(event) {
     let rect = canvasRef.current.getBoundingClientRect();
-    console.log("getBoundingRect", rect);
+    //console.log("getBoundingRect", rect);
 
     let elementRelativeX = event.clientX - rect.left;
     let elementRelativeY = event.clientY - rect.top;
@@ -132,19 +197,78 @@ function App() {
       (elementRelativeX * canvasRef.current.clientWidth) / rect.width;
     let canvasRelativeY =
       (elementRelativeY * canvasRef.current.clientHeight) / rect.height;
-    // console.log("width of canvas : ", canvasRef.current.clientWidth);
 
-    console.log(`x : ${canvasRelativeX}, y : ${canvasRelativeY}`);
-
-    let CTX = canvasRef.current.getContext("2d");
-    CTX.beginPath();
-    CTX.arc(canvasRelativeX, canvasRelativeY, 2, 0, Math.PI * 2);
-    CTX.stroke();
+    return [canvasRelativeX, canvasRelativeY];
   }
 
-  function hanleClickedMouseMoveOnCanvas(event) {
-    if (isDrawing) {
-      drawCustomCircle(event);
+  async function makePrediction() {
+    let ctx = canvasRef.current.getContext("2d");
+    let imageData = ctx.getImageData(
+      0,
+      0,
+      canvasRef.current.width,
+      canvasRef.current.height
+    );
+    console.log("imageData is : ", imageData);
+
+    let answer = tf.tidy(() => {
+      //converting to a tensor
+      let imageTensor = tf.browser.fromPixels(imageData);
+      console.log("imageTensor.shape :", imageTensor.shape);
+
+      //converting to grayscale
+      let greyscaleImageTensor = tf.image.rgbToGrayscale(imageTensor);
+      // let greyscaleImageTensor = tf.image.rgbToGrayscale(normalizedInput);
+      console.log("greyscaleImageTensor.shape : ", greyscaleImageTensor.shape);
+
+      //normalizing
+      let normalizedInput = greyscaleImageTensor.div(tf.scalar(255));
+
+      //resiezing to 28 by 28
+      // let resizedImageTensor = tf.image.resizeBilinear(
+      //   greyscaleImageTensor,
+      //   [28, 28],
+      //   true
+      // );
+
+      let resizedImageTensor = tf.image.resizeBilinear(
+        normalizedInput,
+        [28, 28],
+        true
+      );
+      console.log("resizedImageTensor.shape : ", resizedImageTensor.shape);
+
+      let newInput = tf.reshape(resizedImageTensor, [784]);
+      console.log("newInput.shape: ", newInput.shape);
+
+      // Debugging
+      let CTX = canvasDebug.current.getContext("2d");
+      let imageData = CTX.getImageData(
+        0,
+        0,
+        canvasDebug.current.width,
+        canvasDebug.current.height
+      );
+      for (let i = 0; i < newInput.length; i++) {
+        imageData.data[i * 4] = newInput[i] * 255;
+        imageData.data[i * 4 + 1] = newInput[i] * 255;
+        imageData.data[i * 4 + 2] = newInput[i] * 255;
+        imageData.data[i * 4 + 3] = 255;
+      }
+
+      CTX.putImageData(imageData, 0, 0);
+      //END Debugging
+
+      let opt = model.predict(newInput.expandDims());
+      opt.print();
+      return opt.squeeze().argMax();
+    });
+
+    let index = await answer.array();
+    setIsPrediction(true);
+    setPrediction(index);
+    if (index === 0) {
+      setPrediction("0");
     }
   }
 
@@ -154,26 +278,40 @@ function App() {
 
       <p>See console for even more outputs</p>
       {model ? (
-        <>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+          }}
+        >
           <section className="box">
             <h2>Input Image</h2>
             <p>
               Input Image is a 28x28 pixel greyscale image for MNIST dataset- a
               real hand drawn digit
             </p>
-            <canvas
-              ref={canvasRef}
-              width="168"
-              height="168"
-              onMouseMove={hanleClickedMouseMoveOnCanvas}
-              onMouseDown={drawCustomCircle}
-              onMouseUp={() => setIsDrawing(false)}
-              style={{
-                borderWidth: 2,
-                borderStyle: "solid",
-                borderColor: "yellow",
-              }}
-            ></canvas>
+            {isTrainingDone && (
+              <>
+                <canvas
+                  ref={canvasRef}
+                  width="168"
+                  height="168"
+                  onMouseMove={hanleClickedMouseMoveOnCanvas}
+                  onMouseDown={drawCustomCircle}
+                  onMouseUp={handleMouseUpOnCanvas}
+                  style={{
+                    borderWidth: 2,
+                    borderStyle: "solid",
+                    borderColor: "yellow",
+                  }}
+                ></canvas>
+                <button onClick={handleClearCanvas}>Clear</button>
+              </>
+            )}
+          </section>
+
+          <section>
+            <button onClick={makePrediction}>Predict</button>
           </section>
 
           <section className="box">
@@ -198,7 +336,7 @@ function App() {
               </>
             )}
           </section>
-        </>
+        </div>
       ) : (
         <div
           style={{
@@ -213,6 +351,16 @@ function App() {
           <p>Model is been loaded ...</p>
         </div>
       )}
+      {/* debugging canvas */}
+      <div>
+        <h1>Debugging Images</h1>
+        <canvas
+          ref={canvasDebug}
+          width="168"
+          height="168"
+          style={{ borderStyle: "solid", borderWidth: 2 }}
+        ></canvas>
+      </div>
     </div>
   );
 }
