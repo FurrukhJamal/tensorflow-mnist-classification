@@ -146,7 +146,7 @@ function App() {
 
     if (forDrawingPrevX == null && forDrawingPrevY == null) {
       CTX.beginPath();
-      CTX.arc(canvasRelativeX, canvasRelativeY, 2, 0, Math.PI * 2);
+      CTX.arc(canvasRelativeX, canvasRelativeY, 3, 0, Math.PI * 2);
       CTX.fillStyle = "white";
       CTX.fill();
       CTX.strokeStyle = "white";
@@ -157,7 +157,7 @@ function App() {
       CTX.beginPath();
       CTX.moveTo(forDrawingPrevX, forDrawingPrevY);
       CTX.lineTo(canvasRelativeX, canvasRelativeY);
-      CTX.lineWidth = 4;
+      CTX.lineWidth = 10;
       CTX.strokeStyle = "white";
       CTX.stroke();
     }
@@ -211,64 +211,55 @@ function App() {
     );
     console.log("imageData is : ", imageData);
 
-    let answer = tf.tidy(() => {
-      //converting to a tensor
-      let imageTensor = tf.browser.fromPixels(imageData);
-      console.log("imageTensor.shape :", imageTensor.shape);
+    //converting to a tensor
+    let imageTensor = tf.browser.fromPixels(imageData);
+    console.log("imageTensor.shape :", imageTensor.shape);
 
-      //converting to grayscale
-      let greyscaleImageTensor = tf.image.rgbToGrayscale(imageTensor);
-      // let greyscaleImageTensor = tf.image.rgbToGrayscale(normalizedInput);
-      console.log("greyscaleImageTensor.shape : ", greyscaleImageTensor.shape);
+    //converting to grayscale
+    let greyscaleImageTensor = tf.image.rgbToGrayscale(imageTensor);
+    // let greyscaleImageTensor = tf.image.rgbToGrayscale(normalizedInput);
+    console.log("greyscaleImageTensor.shape : ", greyscaleImageTensor.shape);
 
-      //normalizing
-      let normalizedInput = greyscaleImageTensor.div(tf.scalar(255));
+    //normalizing
+    let normalizedInput = greyscaleImageTensor.div(tf.scalar(255));
 
-      //resiezing to 28 by 28
-      // let resizedImageTensor = tf.image.resizeBilinear(
-      //   greyscaleImageTensor,
-      //   [28, 28],
-      //   true
-      // );
+    let resizedImageTensor = tf.image.resizeBilinear(
+      normalizedInput,
+      [28, 28],
+      true
+    );
+    console.log("resizedImageTensor.shape : ", resizedImageTensor.shape);
 
-      let resizedImageTensor = tf.image.resizeBilinear(
-        normalizedInput,
-        [28, 28],
-        true
-      );
-      console.log("resizedImageTensor.shape : ", resizedImageTensor.shape);
+    // let newInput = tf.reshape(resizedImageTensor, [784]);
+    let newInput = resizedImageTensor.flatten();
+    console.log("newInput.shape: ", newInput.shape);
+    console.log("newInput : ", newInput);
 
-      let newInput = tf.reshape(resizedImageTensor, [784]);
-      console.log("newInput.shape: ", newInput.shape);
-      console.log("newInput.length : ", newInput);
+    // Debugging
+    let CTX = canvasDebug.current.getContext("2d");
+    // let testTensor = tf.reshape(imageTensor, [112896]);
 
-      // Debugging
-      let CTX = canvasDebug.current.getContext("2d");
-      // let testTensor = tf.reshape(imageTensor, [112896]);
+    let imageData2 = CTX.getImageData(0, 0, 28, 28);
+    console.log("imageData2.data.length : ", imageData2.data.length);
+    let data = await newInput.data();
 
-      let imageData2 = CTX.getImageData(
-        0,
-        0,
-        canvasDebug.current.width,
-        canvasDebug.current.height
-      );
-      console.log("imageData2.data.length : ", imageData2.data.length);
+    console.log("data.length : ", data.length);
 
-      for (let i = 0; i < newInput.length; i++) {
-        console.log("newInput[i] : ", newInput[i]);
-        imageData2.data[i * 4] = newInput[i] * 255;
-        imageData2.data[i * 4 + 1] = newInput[i] * 255;
-        imageData2.data[i * 4 + 2] = newInput[i] * 255;
-        imageData2.data[i * 4 + 3] = 255;
-      }
+    for (let i = 0; i < data.length; i++) {
+      // console.log("data[i] : ", data[i]);
+      imageData2.data[i * 4] = data[i] * 255;
+      imageData2.data[i * 4 + 1] = data[i] * 255;
+      imageData2.data[i * 4 + 2] = data[i] * 255;
+      imageData2.data[i * 4 + 3] = 255;
+    }
 
-      CTX.putImageData(imageData2, 0, 0);
-      //END Debugging
+    CTX.putImageData(imageData2, 0, 0);
+    //END Debugging
 
-      let opt = model.predict(newInput.expandDims());
-      opt.print();
-      return opt.squeeze().argMax();
-    });
+    let opt = model.predict(newInput.expandDims());
+    opt.print();
+
+    let answer = opt.squeeze().argMax();
 
     let index = await answer.array();
     setIsPrediction(true);
@@ -362,9 +353,9 @@ function App() {
         <h1>Debugging Images</h1>
         <canvas
           ref={canvasDebug}
-          width="168"
-          height="168"
-          style={{ borderStyle: "solid", borderWidth: 2 }}
+          width="28"
+          height="28"
+          style={{ borderStyle: "solid", borderWidth: 2, zoom: 6 }}
         ></canvas>
       </div>
     </div>
