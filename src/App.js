@@ -41,7 +41,7 @@ function App() {
 
     let m = tf.sequential();
     setModel(m);
-    // console.log("one input data is", inputs[0]);
+    console.log("one input.shape", inputsTensor.shape);
   }, []);
 
   useEffect(() => {
@@ -240,23 +240,29 @@ function App() {
 
       let newInput = tf.reshape(resizedImageTensor, [784]);
       console.log("newInput.shape: ", newInput.shape);
+      console.log("newInput.length : ", newInput);
 
       // Debugging
       let CTX = canvasDebug.current.getContext("2d");
-      let imageData = CTX.getImageData(
+      // let testTensor = tf.reshape(imageTensor, [112896]);
+
+      let imageData2 = CTX.getImageData(
         0,
         0,
         canvasDebug.current.width,
         canvasDebug.current.height
       );
+      console.log("imageData2.data.length : ", imageData2.data.length);
+
       for (let i = 0; i < newInput.length; i++) {
-        imageData.data[i * 4] = newInput[i] * 255;
-        imageData.data[i * 4 + 1] = newInput[i] * 255;
-        imageData.data[i * 4 + 2] = newInput[i] * 255;
-        imageData.data[i * 4 + 3] = 255;
+        console.log("newInput[i] : ", newInput[i]);
+        imageData2.data[i * 4] = newInput[i] * 255;
+        imageData2.data[i * 4 + 1] = newInput[i] * 255;
+        imageData2.data[i * 4 + 2] = newInput[i] * 255;
+        imageData2.data[i * 4 + 3] = 255;
       }
 
-      CTX.putImageData(imageData, 0, 0);
+      CTX.putImageData(imageData2, 0, 0);
       //END Debugging
 
       let opt = model.predict(newInput.expandDims());
