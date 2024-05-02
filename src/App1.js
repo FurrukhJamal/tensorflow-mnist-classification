@@ -1,76 +1,24 @@
 import logo from "./logo.svg";
 import * as tf from "@tensorflow/tfjs";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useContext } from "react";
 import "./App.css";
 
-import { TRAINING_DATA } from "https://storage.googleapis.com/jmstore/TensorFlowJS/EdX/TrainingData/mnist.js";
+// import { TRAINING_DATA } from "https://storage.googleapis.com/jmstore/TensorFlowJS/EdX/TrainingData/mnist.js";
+import { AppContext } from "./context";
 
 function App1() {
-  const [model, setModel] = useState(null);
-  const [isTrainingDone, setIsTrainingDone] = useState(false);
-  const [inputs, setInputs] = useState([]);
-  const [outputs, setOutputs] = useState([]);
   const [isPrediction, setIsPrediction] = useState(false);
   const [prediction, setPrediction] = useState(null);
-  const [inputsTensor, setInputsTensor] = useState(null);
-  const [outputsTensor, setOutputsTensor] = useState(null);
-
   const canvasRef1 = useRef(null);
 
-  useEffect(() => {
-    document.title = "TensorFlow MNIST Dataset Classification";
-    // console.log("TRAINING_DATA : ", TRAINING_DATA);
-
-    const inputs = TRAINING_DATA?.inputs;
-    const outputs = TRAINING_DATA?.outputs;
-
-    tf.util.shuffleCombo(inputs, outputs);
-
-    const inputsTensor = tf.tensor2d(inputs);
-    const outputsTensor = tf.oneHot(tf.tensor1d(outputs, "int32"), 10);
-
-    setInputs(TRAINING_DATA.inputs);
-    setOutputs(TRAINING_DATA.outputs);
-    setInputsTensor(tf.tensor2d(inputs));
-    setOutputsTensor(tf.oneHot(tf.tensor1d(outputs, "int32"), 10));
-
-    let m = tf.sequential();
-    setModel(m);
-  }, []);
-
-  useEffect(() => {
-    if (model) {
-      (async () => {
-        model.add(
-          tf.layers.dense({ inputShape: [784], units: 32, activation: "relu" })
-        );
-        model.add(tf.layers.dense({ units: 16, activation: "relu" }));
-        model.add(tf.layers.dense({ units: 10, activation: "softmax" }));
-
-        model.compile({
-          optimizer: "adam",
-          loss: "categoricalCrossentropy",
-          metrics: ["accuracy"],
-        });
-
-        let result = await model.fit(inputsTensor, outputsTensor, {
-          epochs: 50,
-          validationSplit: 0.2,
-          shuffle: true,
-          batchSize: 512,
-          callbacks: {
-            onEpochEnd: (epoch, logs) =>
-              console.log("Data on epoch " + epoch, logs),
-          },
-        });
-
-        inputsTensor.dispose();
-        outputsTensor.dispose();
-
-        setIsTrainingDone(true);
-      })();
-    }
-  }, [model]);
+  const {
+    isTrainingDone,
+    model,
+    inputs,
+    outputs,
+    inputsTensor,
+    outputsTensor,
+  } = useContext(AppContext);
 
   useEffect(() => {
     const intervalId = setInterval(evaluate, 4000);

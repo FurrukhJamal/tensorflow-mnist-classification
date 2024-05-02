@@ -1,20 +1,14 @@
 import logo from "./logo.svg";
 import * as tf from "@tensorflow/tfjs";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useContext } from "react";
 import "./App.css";
 
-import { TRAINING_DATA } from "https://storage.googleapis.com/jmstore/TensorFlowJS/EdX/TrainingData/mnist.js";
+// import { TRAINING_DATA } from "https://storage.googleapis.com/jmstore/TensorFlowJS/EdX/TrainingData/mnist.js";
+import { AppContext } from "./context";
 
 function App2() {
-  const [model, setModel] = useState(null);
-  const [isTrainingDone, setIsTrainingDone] = useState(false);
-  const [inputs, setInputs] = useState([]);
-  const [outputs, setOutputs] = useState([]);
   const [isPrediction, setIsPrediction] = useState(false);
   const [prediction, setPrediction] = useState(null);
-  const [inputsTensor, setInputsTensor] = useState(null);
-  const [outputsTensor, setOutputsTensor] = useState(null);
-
   const [isDrawing, setIsDrawing] = useState(false);
   const canvasRef = useRef(null);
   const [forDrawingPrevX, setForDrawingPrevX] = useState(null);
@@ -24,65 +18,14 @@ function App2() {
 
   const canvasDebug = useRef(null);
 
-  useEffect(() => {
-    document.title = "TensorFlow MNIST Dataset Classification";
-    // console.log("TRAINING_DATA : ", TRAINING_DATA);
-
-    const inputs = TRAINING_DATA?.inputs;
-    const outputs = TRAINING_DATA?.outputs;
-
-    tf.util.shuffleCombo(inputs, outputs);
-
-    const inputsTensor = tf.tensor2d(inputs);
-    const outputsTensor = tf.oneHot(tf.tensor1d(outputs, "int32"), 10);
-
-    setInputs(TRAINING_DATA.inputs);
-    setOutputs(TRAINING_DATA.outputs);
-    setInputsTensor(tf.tensor2d(inputs));
-    setOutputsTensor(tf.oneHot(tf.tensor1d(outputs, "int32"), 10));
-
-    let m = tf.sequential();
-    setModel(m);
-    console.log("one input.shape", inputsTensor.shape);
-  }, []);
-
-  useEffect(() => {
-    if (model) {
-      (async () => {
-        model.add(
-          tf.layers.dense({ inputShape: [784], units: 32, activation: "relu" })
-        );
-        model.add(tf.layers.dense({ units: 16, activation: "relu" }));
-        model.add(tf.layers.dense({ units: 10, activation: "softmax" }));
-
-        model.compile({
-          optimizer: "adam",
-          loss: "categoricalCrossentropy",
-          metrics: ["accuracy"],
-        });
-
-        let result = await model.fit(inputsTensor, outputsTensor, {
-          epochs: 50,
-          validationSplit: 0.2,
-          shuffle: true,
-          batchSize: 512,
-          callbacks: {
-            onEpochEnd: (epoch, logs) =>
-              console.log("Data on epoch " + epoch, logs),
-          },
-        });
-
-        // inputsTensor.dispose();
-        outputsTensor.dispose();
-
-        setIsTrainingDone(true);
-      })();
-    }
-  }, [model]);
-
-  useEffect(() => {
-    // setInterval(evaluate, 4000);
-  }, [isTrainingDone]);
+  const {
+    isTrainingDone,
+    model,
+    inputs,
+    outputs,
+    inputsTensor,
+    outputsTensor,
+  } = useContext(AppContext);
 
   useEffect(() => {
     if (model && isTrainingDone) {
@@ -92,48 +35,6 @@ function App2() {
       ctx.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height);
     }
   }, [isTrainingDone, model]);
-
-  async function evaluate() {
-    const OFFSET = Math.floor(Math.random() * inputs.length);
-    if (inputs.length > 0) {
-      let answer = tf.tidy(function () {
-        let newInput = tf.tensor1d(inputs[OFFSET]);
-
-        let output = model.predict(newInput.expandDims());
-        output.print();
-        return output.squeeze().argMax();
-      });
-
-      let index = await answer.array();
-      if (outputs[OFFSET] === index) {
-        setIsPrediction(true);
-      } else {
-        setIsPrediction(false);
-      }
-
-      setPrediction(index);
-      // Bug fix to display zero as a string so that Iit doesnt get stored as false
-      if (index === 0) {
-        setPrediction("0");
-      }
-
-      answer.dispose();
-      drawImage(inputs[OFFSET]);
-    }
-  }
-
-  function drawImage(digit) {
-    let CTX = canvasRef.current.getContext("2d");
-    let imageData = CTX.getImageData(0, 0, 28, 28);
-    for (let i = 0; i < digit.length; i++) {
-      imageData.data[i * 4] = digit[i] * 255;
-      imageData.data[i * 4 + 1] = digit[i] * 255;
-      imageData.data[i * 4 + 2] = digit[i] * 255;
-      imageData.data[i * 4 + 3] = 255;
-    }
-
-    CTX.putImageData(imageData, 0, 0);
-  }
 
   function drawCustomCircle(event) {
     setIsDrawing(true);
@@ -186,6 +87,16 @@ function App2() {
     // refilling the black background
     ctx.fillStyle = "black";
     ctx.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+
+    //clearing the prediction and debug image canvas
+    setPrediction(null);
+    let ctxDebug = canvasDebug.current.getContext("2d");
+    ctxDebug.clearRect(
+      0,
+      0,
+      canvasDebug.current.width,
+      canvasDebug.current.height
+    );
   }
 
   function calculateXYCanvas(event) {
@@ -237,7 +148,7 @@ function App2() {
     console.log("newInput.shape: ", newInput.shape);
     console.log("newInput : ", newInput);
 
-    // Debugging
+    // Code For Image Debugging
     let CTX = canvasDebug.current.getContext("2d");
     // let testTensor = tf.reshape(imageTensor, [112896]);
 
@@ -286,8 +197,9 @@ function App2() {
           <section className="box">
             <h2>Input Image</h2>
             <p>
-              Input Image is a 28x28 pixel greyscale image for MNIST dataset- a
-              real hand drawn digit
+              Draw a number between 0 and 9 and then click Predict to see what
+              the AI thinks the number is. Please try to draw on the center of
+              the area below to get best results
             </p>
             {isTrainingDone && (
               <>
@@ -319,7 +231,7 @@ function App2() {
               Below you see what number the trained Tensorflow.js model has
               predicted from the input image
             </p>
-            <p>Red is wrong Prediction. Green is a correct one</p>
+
             {prediction ? (
               <>
                 <p
@@ -331,7 +243,7 @@ function App2() {
               </>
             ) : (
               <>
-                <p id="prediction">Training model . Please wait ...</p>
+                <p id="prediction">Awaiting your input</p>
               </>
             )}
           </section>
@@ -353,6 +265,9 @@ function App2() {
       {/* debugging canvas */}
       <div>
         <h1>Debugging Images</h1>
+        <p>
+          This is the image zoomed by a factor of 6, what the model will see
+        </p>
         <canvas
           ref={canvasDebug}
           width="28"
