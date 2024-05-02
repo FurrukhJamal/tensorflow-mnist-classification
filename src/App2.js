@@ -60,7 +60,7 @@ function App2() {
       CTX.beginPath();
       CTX.moveTo(forDrawingPrevX, forDrawingPrevY);
       CTX.lineTo(canvasRelativeX, canvasRelativeY);
-      CTX.lineWidth = 10;
+      CTX.lineWidth = 14;
       CTX.strokeStyle = "white";
       CTX.stroke();
     }
