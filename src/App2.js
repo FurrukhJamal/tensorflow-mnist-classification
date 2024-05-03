@@ -60,7 +60,7 @@ function App2() {
       CTX.beginPath();
       CTX.moveTo(forDrawingPrevX, forDrawingPrevY);
       CTX.lineTo(canvasRelativeX, canvasRelativeY);
-      CTX.lineWidth = 10;
+      CTX.lineWidth = 14;
       CTX.strokeStyle = "white";
       CTX.stroke();
     }
@@ -182,6 +182,14 @@ function App2() {
     if (index === 0) {
       setPrediction("0");
     }
+
+    imageTensor.dispose();
+    greyscaleImageTensor.dispose();
+    normalizedInput.dispose();
+    resizedImageTensor.dispose();
+    newInput.dispose();
+    opt.dispose();
+    answer.dispose();
   }
 
   return (
