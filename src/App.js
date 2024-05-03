@@ -43,9 +43,34 @@ function App() {
     if (model) {
       (async () => {
         model.add(
-          tf.layers.dense({ inputShape: [784], units: 32, activation: "relu" })
+          tf.layers.conv2d({
+            inputShape: [28, 28, 1],
+            filters: 16,
+            kernelSize: [3, 3],
+            strides: 1,
+            padding: "same",
+            activation: "relu",
+          })
         );
-        model.add(tf.layers.dense({ units: 16, activation: "relu" }));
+
+        model.add(tf.layers.maxPool2d({ poolSize: [2, 2], strides: 2 }));
+
+        model.add(
+          tf.layers.conv2d({
+            filters: 32,
+            kernelSize: [3, 3],
+            strides: 1,
+            padding: "same",
+            activation: "relu",
+          })
+        );
+
+        model.add(tf.layers.maxPool2d({ poolSize: [2, 2], strides: 2 }));
+
+        model.add(tf.layers.dropout(0.25));
+
+        model.add(tf.layers.flatten());
+        model.add(tf.layers.dense({ units: 128, activation: "relu" }));
         model.add(tf.layers.dense({ units: 10, activation: "softmax" }));
 
         model.compile({
@@ -54,11 +79,13 @@ function App() {
           metrics: ["accuracy"],
         });
 
-        let result = await model.fit(inputsTensor, outputsTensor, {
-          epochs: 50,
+        let reshapedInputs = inputsTensor.reshape([inputs.length, 28, 28, 1]);
+
+        let result = await model.fit(reshapedInputs, outputsTensor, {
+          epochs: 30,
           validationSplit: 0.2,
           shuffle: true,
-          batchSize: 512,
+          batchSize: 256,
           callbacks: {
             onEpochEnd: (epoch, logs) =>
               console.log("Data on epoch " + epoch, logs),

@@ -60,7 +60,7 @@ function App2() {
       CTX.beginPath();
       CTX.moveTo(forDrawingPrevX, forDrawingPrevY);
       CTX.lineTo(canvasRelativeX, canvasRelativeY);
-      CTX.lineWidth = 14;
+      CTX.lineWidth = 10;
       CTX.strokeStyle = "white";
       CTX.stroke();
     }
@@ -154,6 +154,7 @@ function App2() {
 
     let imageData2 = CTX.getImageData(0, 0, 28, 28);
     console.log("imageData2.data.length : ", imageData2.data.length);
+    //get the actual data
     let data = await newInput.data();
 
     console.log("data.length : ", data.length);
@@ -169,7 +170,8 @@ function App2() {
     CTX.putImageData(imageData2, 0, 0);
     //END Debugging
 
-    let opt = model.predict(newInput.expandDims());
+    // let opt = model.predict(newInput.expandDims());
+    let opt = model.predict(resizedImageTensor.expandDims()); //reshapping it to [1, 28, 28, 1]
     opt.print();
 
     let answer = opt.squeeze().argMax();

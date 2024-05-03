@@ -33,7 +33,8 @@ function App1() {
       let answer = tf.tidy(function () {
         let newInput = tf.tensor1d(inputs[OFFSET]);
 
-        let output = model.predict(newInput.expandDims());
+        // let output = model.predict(newInput.expandDims());
+        let output = model.predict(newInput.reshape([1, 28, 28, 1]));
         output.print();
         return output.squeeze().argMax();
       });
